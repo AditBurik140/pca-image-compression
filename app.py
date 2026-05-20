@@ -10,7 +10,7 @@ from skimage.metrics import structural_similarity as ssim
 # Konfigurasi halaman web Streamlit
 st.set_page_config(page_title="PCA Image Compression", layout="wide")
 
-st.title("Kompresi Citra RGB dengan PCA & EDA")
+st.title("Aplikasi Kompresi Citra RGB dengan PCA dan EDA")
 st.write("Unggah gambar berwarna Anda, sesuaikan jumlah komponen utama (k), dan lihat analisis statistiknya secara real-time.")
 
 # Fungsi Penunjang Perhitungan
@@ -31,7 +31,7 @@ if uploaded_file is not None:
     tinggi, lebar, _ = img_array.shape
     max_k = min(tinggi, lebar)
 
-   # --- SIDESBAR UNTUK INPUT USER ---
+    # --- SIDEBAR UNTUK INPUT USER ---
     st.sidebar.header("Pengaturan PCA")
     k = st.sidebar.number_input("Ketik Jumlah Komponen (k)", min_value=1, max_value=max_k, value=int(max_k * 0.15), step=1)
     
