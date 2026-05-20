@@ -11,7 +11,7 @@ from skimage.metrics import structural_similarity as ssim
 st.set_page_config(page_title="PCA Image Compression", layout="wide")
 
 st.title("Aplikasi Kompresi Citra RGB dengan PCA dan EDA")
-st.write("Unggah gambar berwarna Anda, sesuaikan jumlah komponen utama (k), dan lihat analisis statistiknya secara real-time.")
+st.write("Unggah gambar berwarna Anda, ketik beberapa nilai komponen (k), dan bandingkan hasilnya.")
 
 # Fungsi Penunjang Perhitungan
 def calculate_mse(original, reconstructed):
@@ -31,9 +31,26 @@ if uploaded_file is not None:
     tinggi, lebar, _ = img_array.shape
     max_k = min(tinggi, lebar)
 
-    # --- SIDEBAR UNTUK INPUT USER ---
+    # --- SIDEBAR UNTUK INPUT MULTI-VARIABEL ---
     st.sidebar.header("Pengaturan PCA")
-    k = st.sidebar.number_input("Ketik Jumlah Komponen (k)", min_value=1, max_value=max_k, value=int(max_k * 0.15), step=1)
+    st.sidebar.write(f"Batas maksimal k: {max_k}")
+    
+    # Menggunakan text_input agar bisa menerima input koma
+    k_input = st.sidebar.text_input("Masukkan variasi nilai k (pisahkan dengan koma)", "10, 50, 100")
+    
+    # Proses parsing input teks menjadi list angka (integer)
+    try:
+        # Memecah teks berdasarkan koma, menghapus spasi, dan mengubah ke integer
+        k_values = [int(x.strip()) for x in k_input.split(',')]
+        # Membuang angka yang melebihi batas maksimal gambar atau bernilai negatif/nol
+        k_values = [k for k in k_values if 0 < k <= max_k]
+        
+        if not k_values:
+            st.sidebar.error("Masukkan setidaknya satu angka yang valid.")
+            st.stop() # Hentikan eksekusi ke bawah jika input tidak valid
+    except ValueError:
+        st.sidebar.error("Format salah! Masukkan angka yang dipisahkan koma. Contoh: 10, 50, 100")
+        st.stop()
     
     # --- 2. TAMPILKAN EDA AWAL ---
     st.subheader("Analisis EDA Awal (Sebelum Kompresi)")
@@ -47,60 +64,74 @@ if uploaded_file is not None:
     with col_stat4:
         st.metric("Std Deviation", f"{np.std(img_array):.2f}")
 
-    # --- 3. PROSES KOMPRESI PCA RGB ---
+    # --- 3. PROSES KOMPRESI DAN EVALUASI ---
+    st.subheader("Perbandingan Visual dan Histogram")
+    
     R, G, B = img_array[:, :, 0], img_array[:, :, 1], img_array[:, :, 2]
+    eval_results = []
     
-    pca_r = PCA(n_components=k)
-    pca_g = PCA(n_components=k)
-    pca_b = PCA(n_components=k)
+    # Membuat Tabs di Streamlit agar rapi (satu tab untuk satu nilai K)
+    tabs = st.tabs([f"K = {k}" for k in k_values])
     
-    R_rec = pca_r.inverse_transform(pca_r.fit_transform(R))
-    G_rec = pca_g.inverse_transform(pca_g.fit_transform(G))
-    B_rec = pca_b.inverse_transform(pca_b.fit_transform(B))
-    
-    img_rec = np.dstack((R_rec, G_rec, B_rec))
-    img_rec = np.clip(img_rec, 0, 255).astype(np.uint8)
+    # Melakukan perulangan untuk setiap nilai k yang dimasukkan user
+    for idx, k in enumerate(k_values):
+        
+        # Proses PCA
+        pca_r = PCA(n_components=k)
+        pca_g = PCA(n_components=k)
+        pca_b = PCA(n_components=k)
+        
+        R_rec = pca_r.inverse_transform(pca_r.fit_transform(R))
+        G_rec = pca_g.inverse_transform(pca_g.fit_transform(G))
+        B_rec = pca_b.inverse_transform(pca_b.fit_transform(B))
+        
+        img_rec = np.dstack((R_rec, G_rec, B_rec))
+        img_rec = np.clip(img_rec, 0, 255).astype(np.uint8)
 
-    # --- 4. PERHITUNGAN METRIK ---
-    avg_ev = np.mean([sum(pca_r.explained_variance_ratio_), 
-                      sum(pca_g.explained_variance_ratio_), 
-                      sum(pca_b.explained_variance_ratio_)]) * 100
-    mse_val = calculate_mse(img_array, img_rec)
-    psnr_val = calculate_psnr(mse_val)
-    ssim_val = ssim(img_array, img_rec, data_range=255, channel_axis=-1)
-    
-    ukuran_asli = tinggi * lebar * 3
-    ukuran_terkompresi = 3 * ((tinggi * k) + (k * lebar))
-    rasio_kompresi = ukuran_asli / ukuran_terkompresi
+        # Perhitungan Metrik
+        avg_ev = np.mean([sum(pca_r.explained_variance_ratio_), 
+                          sum(pca_g.explained_variance_ratio_), 
+                          sum(pca_b.explained_variance_ratio_)]) * 100
+        mse_val = calculate_mse(img_array, img_rec)
+        psnr_val = calculate_psnr(mse_val)
+        # Menggunakan multichannel=True agar terhindar dari error versi scikit-image di server cloud
+        ssim_val = ssim(img_array, img_rec, data_range=255, multichannel=True)
+        
+        ukuran_asli = tinggi * lebar * 3
+        ukuran_terkompresi = 3 * ((tinggi * k) + (k * lebar))
+        rasio_kompresi = ukuran_asli / ukuran_terkompresi
+        
+        # Menyimpan data metrik ke list untuk dijadikan tabel nanti
+        eval_results.append({
+            "Jumlah Komponen (k)": k,
+            "Explained Variance": f"{avg_ev:.2f}%",
+            "MSE": round(mse_val, 2),
+            "PSNR (dB)": round(psnr_val, 2),
+            "SSIM Index": round(ssim_val, 4),
+            "Rasio Kompresi": round(rasio_kompresi, 2)
+        })
 
-    # --- 5. VISUALISASI GAMBAR SIDE-BY-SIDE ---
-    st.subheader("Perbandingan Visual")
-    col1, col2, col3 = st.columns(3)
-    
-    with col1:
-        st.image(img_array, caption="Gambar Asli", use_container_width=True)
-    with col2:
-        st.image(img_rec, caption=f"Hasil Rekonstruksi PCA (k={k})", use_container_width=True)
-    with col3:
-        # Error image E = |X - X^|
-        error_img = np.mean(np.abs(img_array.astype(np.float32) - img_rec.astype(np.float32)), axis=2).astype(np.uint8)
-        st.image(error_img, caption="Error Image (Terang = Detail Hilang)", use_container_width=True)
+        # Memasukkan visualisasi ke dalam Tab yang sesuai
+        with tabs[idx]:
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.image(img_array, caption="Gambar Asli", use_container_width=True)
+            with col2:
+                st.image(img_rec, caption=f"Hasil Rekonstruksi PCA (k={k})", use_container_width=True)
+            with col3:
+                error_img = np.mean(np.abs(img_array.astype(np.float32) - img_rec.astype(np.float32)), axis=2).astype(np.uint8)
+                st.image(error_img, caption="Error Image (Terang = Detail Hilang)", use_container_width=True)
 
-    # --- 6. VISUALISASI HISTOGRAM ---
-    st.subheader("EDA Lanjutan: Perbandingan Histogram Distribusi Warna")
-    fig, ax = plt.subplots(figsize=(10, 3))
-    ax.hist(img_array.ravel(), bins=256, color='blue', alpha=0.4, label='Asli', density=True)
-    ax.hist(img_rec.ravel(), bins=256, color='orange', alpha=0.4, label='Rekonstruksi', density=True)
-    ax.set_title("Distribusi Intensitas Piksel (Asli vs Rekonstruksi)")
-    ax.legend()
-    st.pyplot(fig)
-    plt.close(fig)
+            # Histogram
+            fig, ax = plt.subplots(figsize=(10, 2.5))
+            ax.hist(img_array.ravel(), bins=256, color='blue', alpha=0.4, label='Asli', density=True)
+            ax.hist(img_rec.ravel(), bins=256, color='orange', alpha=0.4, label='Rekonstruksi', density=True)
+            ax.set_title(f"Distribusi Intensitas Piksel (k={k})")
+            ax.legend()
+            st.pyplot(fig)
+            plt.close(fig)
 
-    # --- 7. TABEL EVALUASI DATA ---
+    # --- 4. TABEL EVALUASI KESELURUHAN ---
     st.subheader("Tabel Hasil Evaluasi Kompresi")
-    eval_data = {
-        "Metrik Evaluasi": ["Jumlah Komponen (k)", "Explained Variance (%)", "MSE", "PSNR (dB)", "SSIM Index", "Rasio Kompresi"],
-        "Nilai Terhitung": [k, f"{avg_ev:.2f}%", f"{mse_val:.2f}", f"{psnr_val:.2f} dB", f"{ssim_val:.4f}", f"{rasio_kompresi:.2f} x lebih hemat"]
-    }
-    df_eval = pd.DataFrame(eval_data)
-    st.table(df_eval)
+    df_eval = pd.DataFrame(eval_results)
+    st.dataframe(df_eval, use_container_width=True)
