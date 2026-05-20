@@ -31,9 +31,9 @@ if uploaded_file is not None:
     tinggi, lebar, _ = img_array.shape
     max_k = min(tinggi, lebar)
 
-    # --- SIDESBAR UNTUK INPUT USER ---
+   # --- SIDESBAR UNTUK INPUT USER ---
     st.sidebar.header("⚙️ Pengaturan PCA")
-    k = st.sidebar.slider("Pilih Jumlah Komponen (k)", min_value=1, max_value=max_k, value=int(max_k * 0.15))
+    k = st.sidebar.number_input("Ketik Jumlah Komponen (k)", min_value=1, max_value=max_k, value=int(max_k * 0.15), step=1)
     
     # --- 2. TAMPILKAN EDA AWAL ---
     st.subheader("📊 Analisis EDA Awal (Sebelum Kompresi)")
