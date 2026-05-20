@@ -10,7 +10,7 @@ from skimage.metrics import structural_similarity as ssim
 # Konfigurasi halaman web Streamlit
 st.set_page_config(page_title="PCA Image Compression", layout="wide")
 
-st.title("🖼️ Aplikasi Kompresi Citra RGB dengan PCA & EDA")
+st.title("Kompresi Citra RGB dengan PCA & EDA")
 st.write("Unggah gambar berwarna Anda, sesuaikan jumlah komponen utama (k), dan lihat analisis statistiknya secara real-time.")
 
 # Fungsi Penunjang Perhitungan
@@ -36,7 +36,7 @@ if uploaded_file is not None:
     k = st.sidebar.number_input("Ketik Jumlah Komponen (k)", min_value=1, max_value=max_k, value=int(max_k * 0.15), step=1)
     
     # --- 2. TAMPILKAN EDA AWAL ---
-    st.subheader("📊 Analisis EDA Awal (Sebelum Kompresi)")
+    st.subheader("Analisis EDA Awal (Sebelum Kompresi)")
     col_stat1, col_stat2, col_stat3, col_stat4 = st.columns(4)
     with col_stat1:
         st.metric("Dimensi Gambar", f"{tinggi} x {lebar} px")
@@ -74,7 +74,7 @@ if uploaded_file is not None:
     rasio_kompresi = ukuran_asli / ukuran_terkompresi
 
     # --- 5. VISUALISASI GAMBAR SIDE-BY-SIDE ---
-    st.subheader("🖼️ Perbandingan Visual")
+    st.subheader("Perbandingan Visual")
     col1, col2, col3 = st.columns(3)
     
     with col1:
@@ -87,7 +87,7 @@ if uploaded_file is not None:
         st.image(error_img, caption="Error Image (Terang = Detail Hilang)", use_container_width=True)
 
     # --- 6. VISUALISASI HISTOGRAM ---
-    st.subheader("📈 EDA Lanjutan: Perbandingan Histogram Distribusi Warna")
+    st.subheader("EDA Lanjutan: Perbandingan Histogram Distribusi Warna")
     fig, ax = plt.subplots(figsize=(10, 3))
     ax.hist(img_array.ravel(), bins=256, color='blue', alpha=0.4, label='Asli', density=True)
     ax.hist(img_rec.ravel(), bins=256, color='orange', alpha=0.4, label='Rekonstruksi', density=True)
@@ -97,7 +97,7 @@ if uploaded_file is not None:
     plt.close(fig)
 
     # --- 7. TABEL EVALUASI DATA ---
-    st.subheader("📋 Tabel Hasil Evaluasi Kompresi")
+    st.subheader("Tabel Hasil Evaluasi Kompresi")
     eval_data = {
         "Metrik Evaluasi": ["Jumlah Komponen (k)", "Explained Variance (%)", "MSE", "PSNR (dB)", "SSIM Index", "Rasio Kompresi"],
         "Nilai Terhitung": [k, f"{avg_ev:.2f}%", f"{mse_val:.2f}", f"{psnr_val:.2f} dB", f"{ssim_val:.4f}", f"{rasio_kompresi:.2f} x lebih hemat"]
