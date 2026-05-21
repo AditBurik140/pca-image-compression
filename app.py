@@ -94,8 +94,8 @@ if uploaded_file is not None:
                           sum(pca_b.explained_variance_ratio_)]) * 100
         mse_val = calculate_mse(img_array, img_rec)
         psnr_val = calculate_psnr(mse_val)
-        # Menggunakan multichannel=True agar terhindar dari error versi scikit-image di server cloud
-        ssim_val = ssim(img_array, img_rec, data_range=255, multichannel=True)
+    
+        ssim_val = ssim(img_array, img_rec, data_range=255, channel_axis=-1)
         
         ukuran_asli = tinggi * lebar * 3
         ukuran_terkompresi = 3 * ((tinggi * k) + (k * lebar))
